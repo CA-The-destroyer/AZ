@@ -7,10 +7,9 @@
   2. Prompts to login (if not already) and choose an Azure subscription by number (with re-login if needed).
   3. Lists all VMs in that subscription and lets you pick one or more by number (comma-separated).
   4. Prompts (with validation) for a tag key (max 512 chars) and value (max 256 chars).
-  5. Merges that tag onto each selected VM, logging success or errors.
-  6. Exports a CSV artifact (`TaggedVMs_<timestamp>.csv`) listing for each VM:
-     – ResourceGroup, VMName, ResourceId  
-     – OldTags, NewTags  
+  5. For each VM, if the tag key does NOT already exist, merges that tag; otherwise skips it.
+  6. Exports a CSV artifact (`TaggedVMs_<timestamp>.csv`) listing for each VM changed:
+     – ResourceGroup, VMName, ResourceId, OldTags, NewTags
   7. Generates an undo-script (`UndoTags_<timestamp>.ps1`) that reverts all those tag changes.
 #>
 
@@ -116,12 +115,17 @@ foreach ($vmMeta in $selectedVMs) {
     $id   = $vmMeta.Id
 
     Write-Host ''
-    Write-Host "Tagging $rg/$name..." -ForegroundColor Cyan
+    Write-Host "Processing $rg/$name..." -ForegroundColor Cyan
 
     # fetch old tags
     $res     = Get-AzResource -ResourceId $id -ExpandProperties -ErrorAction Stop
     $oldTags = if ($res.Tags) { $res.Tags } else { @{} }
-    
+
+    if ($oldTags.ContainsKey($tagKey)) {
+        Write-Host "  [SKIP] '$tagKey' already exists on $name; no action taken." -ForegroundColor Yellow
+        continue
+    }
+
     try {
         Update-AzTag `
           -ResourceId $id `
@@ -157,8 +161,7 @@ if ($changes.Count -gt 0) {
     $changes | Export-Csv -Path $outFile -NoTypeInformation
     Write-Host ''
     Write-Host "✅ Changes exported to $outFile" -ForegroundColor Green
-}
-else {
+} else {
     Write-Host ''
     Write-Host 'No successful tag changes to export.' -ForegroundColor Yellow
 }
@@ -166,14 +169,12 @@ else {
 # --- 7. Generate Undo Script ---
 $undoFile = "UndoTags_$timestamp.ps1"
 
-# header with interpolation of the CSV filename
 $header = @"
 <# Undo Tagging Script
    This script reverts VM tags based on the CSV artifact '$outFile'
 #>
 "@
 
-# body (single-quoted here-string to prevent interpolation)
 $body = @'
 Import-Module Az.Accounts -ErrorAction Stop
 Import-Module Az.Resources -ErrorAction Stop
@@ -182,7 +183,7 @@ if (-not (Get-AzContext)) {
     Connect-AzAccount -ErrorAction Stop
 }
 
-$changes = Import-Csv -Path 'PLACEHOLDER_CSV'
+$changes = Import-Csv -Path ''PLACEHOLDER_CSV''
 
 foreach ($c in $changes) {
     $id      = $c.ResourceId
@@ -198,8 +199,7 @@ foreach ($c in $changes) {
 }
 '@
 
-# replace placeholder with actual CSV name, assemble, and write
-$body        = $body -replace 'PLACEHOLDER_CSV', $outFile
+$body = $body -replace "''PLACEHOLDER_CSV''", "'$outFile'"
 $undoContent = $header + "`n" + $body
 $undoContent | Out-File -FilePath $undoFile -Encoding UTF8
 
