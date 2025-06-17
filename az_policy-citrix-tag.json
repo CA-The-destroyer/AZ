@@ -1,0 +1,67 @@
+{
+  "properties": {
+    "displayName": "Enforce AppPortId tag on Citrix RGs",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Deny creation or update of any resource group with “Citrix” in its name unless it has the AppPortId tag with value XXXXXXX.",
+    "metadata": {
+      "version": "1.0.0",
+      "category": "Tags"
+    },
+    "parameters": {
+      "tagName": {
+        "type": "String",
+        "defaultValue": "AppPortId",
+        "metadata": {
+          "displayName": "Tag Name",
+          "description": "Name of the tag to require (e.g. 'AppPortId')."
+        }
+      },
+      "tagValue": {
+        "type": "String",
+        "defaultValue": "XXXXXXX",
+        "metadata": {
+          "displayName": "Tag Value",
+          "description": "Tag value to match (e.g. 'XXXXXXX')."
+        }
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions/resourceGroups"
+          },
+          {
+            "field": "name",
+            "like": "*Citrix*"
+          },
+          {
+            "anyOf": [
+              {
+                "field": "[concat('tags[', parameters('tagName'), ']')]",
+                "exists": "false"
+              },
+              {
+                "allOf": [
+                  {
+                    "field": "[concat('tags[', parameters('tagName'), ']')]",
+                    "exists": "true"
+                  },
+                  {
+                    "field": "[concat('tags[', parameters('tagName'), ']')]",
+                    "notEquals": "[parameters('tagValue')]"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "effect": "deny"
+      }
+    }
+  }
+}
