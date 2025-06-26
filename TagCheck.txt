@@ -1,7 +1,7 @@
 Resources
 | where type =~ 'microsoft.compute/virtualmachines'
-| where tostring(tags['AppPortID']) == '443'
-| project vmId = id, vmName = name, vmRG = resourceGroup, location, AppPortID = tostring(tags['AppPortID'])
+| where isnull(tags['AppPortID']) or tags['AppPortID'] == ''
+| project vmId = id, vmName = name, vmRG = resourceGroup, location
 | join kind=leftouter (
     Resources
     | where type =~ 'microsoft.compute/disks'
@@ -11,6 +11,18 @@ Resources
 | join kind=leftouter (
     Resources
     | where type =~ 'microsoft.network/networkinterfaces'
-    | project nicName = name, nicRG = resourceGroup, nicVmId = tostring(properties.virtualMachine.id)
+    | project nicId = id, nicName = name, nicRG = resourceGroup, nicVmId = tostring(properties.virtualMachine.id), 
+              publicIpId = tostring(properties.ipConfigurations[0].properties.publicIPAddress.id),
+              nsgId = tostring(properties.networkSecurityGroup.id)
 ) on $left.vmId == $right.nicVmId
-| project vmName, vmRG, location, AppPortID, diskName, diskRG, nicName, nicRG
+| join kind=leftouter (
+    Resources
+    | where type =~ 'microsoft.network/publicipaddresses'
+    | project publicIpId = id, publicIp = properties.ipAddress
+) on $left.publicIpId == $right.publicIpId
+| join kind=leftouter (
+    Resources
+    | where type =~ 'microsoft.network/networksecuritygroups'
+    | project nsgId = id, nsgName = name, nsgRG = resourceGroup
+) on $left.nsgId == $right.nsgId
+| project vmName, vmRG, location, diskName, diskRG, nicName, nicRG, publicIp, nsgName, nsgRG
