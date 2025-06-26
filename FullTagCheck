@@ -1,0 +1,17 @@
+Resources
+| where type in~ (
+    'microsoft.compute/virtualmachines',
+    'microsoft.compute/disks',
+    'microsoft.network/networkinterfaces',
+    'microsoft.network/publicipaddresses',
+    'microsoft.network/networksecuritygroups'
+)
+| where isnotempty(tags)
+| mv-expand tagKey = bag_keys(tags)
+| extend tagKeyStr = tostring(tagKey)
+| project resourceType = type,
+          name,
+          resourceGroup,
+          location,
+          tagKey = tagKeyStr,
+          tagValue = tostring(tags[tagKeyStr])
