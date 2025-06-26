@@ -1,11 +1,10 @@
 Resources
-| where type in~ (
-    'microsoft.compute/virtualmachines',
-    'microsoft.compute/disks',
-    'microsoft.network/networkinterfaces',
-    'microsoft.network/publicipaddresses',
-    'microsoft.network/networksecuritygroups'
-)
+| where 
+    (type =~ 'microsoft.compute/virtualmachines' or
+     type =~ 'microsoft.network/networkinterfaces' or
+     type =~ 'microsoft.network/publicipaddresses' or
+     type =~ 'microsoft.network/networksecuritygroups' or
+     (type =~ 'microsoft.compute/disks' and name has 'IdentityDisk'))
 | where isnotempty(tags)
 | mv-expand tagKey = bag_keys(tags)
 | extend tagKeyStr = tostring(tagKey)
@@ -13,5 +12,6 @@ Resources
           name,
           resourceGroup,
           location,
+          diskSku = iff(type =~ 'microsoft.compute/disks', tostring(sku.name), ''),
           tagKey = tagKeyStr,
           tagValue = tostring(tags[tagKeyStr])
