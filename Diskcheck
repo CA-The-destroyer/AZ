@@ -1,0 +1,7 @@
+Resources
+| where type =~ 'microsoft.compute/disks'
+| where name has 'IdentityDisk'
+| project diskName = name, diskRG = resourceGroup, location, 
+          diskSizeGB = properties.diskSizeGb,
+          osType = properties.osType,
+          managedBy = properties.ownerId
