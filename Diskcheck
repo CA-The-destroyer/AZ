@@ -1,7 +1,8 @@
 Resources
 | where type =~ 'microsoft.compute/disks'
 | where name has 'IdentityDisk'
-| project diskName = name, diskRG = resourceGroup, location, 
-          diskSizeGB = properties.diskSizeGb,
-          osType = properties.osType,
-          managedBy = properties.ownerId
+| extend diskSizeGB = tostring(properties.diskSizeGb), managedBy = tostring(properties.ownerId)
+| mv-expand tagPair = bag_unpack(tags)
+| project diskName = name, diskRG = resourceGroup, location, diskSizeGB, managedBy,
+          tagKey = tostring(tagPair[0]), tagValue = tostring(tagPair[1])
+
