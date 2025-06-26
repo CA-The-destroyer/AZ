@@ -3,7 +3,8 @@ Resources
 | where name has 'IdentityDisk'
 | where isnotempty(tags)
 | mv-expand tagKey = bag_keys(tags)
+| extend tagKeyStr = tostring(tagKey)
 | project diskName = name, diskRG = resourceGroup, location, 
           diskSizeGB = properties.diskSizeGb,
           managedBy = tostring(properties.ownerId),
-          tagKey, tagValue = tostring(tags[tagKey])
+          tagKey = tagKeyStr, tagValue = tostring(tags[tagKeyStr])
