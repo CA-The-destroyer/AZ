@@ -1,0 +1,18 @@
+let vmData = Resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| where tostring(tags['AppPortID']) == 'YourExpectedValue'
+| project vmId = id, vmName = name, vmRG = resourceGroup, location, AppPortID = tostring(tags['AppPortID']);
+
+let disks = Resources
+| where type =~ 'microsoft.compute/disks'
+| where name has 'IdentityDisk'
+| project diskId = id, diskName = name, diskRG = resourceGroup, diskVmId = properties['ownerId'];
+
+let nics = Resources
+| where type =~ 'microsoft.network/networkinterfaces'
+| project nicId = id, nicName = name, nicRG = resourceGroup, attachedVmId = tostring(properties.virtualMachine.id);
+
+vmData
+| join kind=leftouter (disks) on $left.vmId == $right.diskVmId
+| join kind=leftouter (nics) on $left.vmId == $right.attachedVmId
+| project vmName, vmRG, location, AppPortID, diskName, diskRG, nicName, nicRG
