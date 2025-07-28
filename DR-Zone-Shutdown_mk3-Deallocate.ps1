@@ -1,4 +1,3 @@
-```powershell
 <#
 .SYNOPSIS
   Shutdown (stop/deallocate) selected Azure VMs by zone, non-zonal, all, specific, or none,
@@ -93,7 +92,7 @@ $choice  = $menu[$sel - 1]
 $targets = $choice.Targets
 
 #———————————————————————————————————————————————
-# Handle 'Specific VM' selection
+# 5) Handle 'Specific VM' selection
 #———————————————————————————————————————————————
 if ($choice.Label -eq 'Specific VM') {
     do {
@@ -114,7 +113,7 @@ if (-not $targets.Count) {
 }
 
 #———————————————————————————————————————————————
-# 5) Confirm selection
+# 6) Confirm selection
 #———————————————————————————————————————————————
 Write-Host "`nWill shutdown these VMs:" -ForegroundColor Cyan
 $targets | ForEach-Object { Write-Host "  - $($_.Name) (RG: $($_.ResourceGroup))" }
@@ -124,7 +123,7 @@ if (-not $WhatIf) {
 }
 
 #———————————————————————————————————————————————
-# 6) Shutdown loop: stop ephemeral‐OS vs deallocate
+# 7) Shutdown loop: stop ephemeral‐OS vs deallocate
 #———————————————————————————————————————————————
 $stoppedVMs = @()
 foreach ($vm in $targets) {
@@ -165,7 +164,25 @@ Write-Host "`nShutdown commands submitted." -ForegroundColor Green
 "Completed shutdown at $(Get-Date -Format 'u')" | Out-File -Append $logFile
 
 #———————————————————————————————————————————————
-# 7) Prompt to deallocate ephemeral‑OS VMs
+# 8) Wait for ephemeral‑OS VMs to fully stop before deallocation
+#    Notify user that we are entering the wait loop
+Write-Host "`nStarting wait loop for ephemeral-OS VMs to fully stop. This may take several minutes..." -ForegroundColor Yellow
+‐OS VMs to fully stop before deallocation
+#———————————————————————————————————————————————
+if ($stoppedVMs.Count -gt 0) {
+    foreach ($vm in $stoppedVMs) {
+        $name = $vm.Name; $rg = $vm.ResourceGroup
+        Write-Host "Waiting for VM '$name' to reach 'VM stopped' state..." -ForegroundColor Yellow
+        do {
+            $state = az vm show --resource-group $rg --name $name --query "powerState" -o tsv 2>$null
+            Start-Sleep -Seconds 5
+        } while ($state -ne 'VM stopped')
+    }
+    Write-Host "All ephemeral-OS VMs are in 'VM stopped' state." -ForegroundColor Green
+}
+
+#———————————————————————————————————————————————
+# 9) Prompt to deallocate ephemeral‑OS VMs
 #———————————————————————————————————————————————
 if ($stoppedVMs.Count -gt 0) {
     Write-Host "`nThe following ephemeral‑OS VMs were stopped (not deallocated):`n" -ForegroundColor Cyan
@@ -203,7 +220,7 @@ if ($stoppedVMs.Count -gt 0) {
 }
 
 #———————————————————————————————————————————————
-# 8) Generate restart script
+# 10) Generate restart script
 #———————————————————————————————————————————————
 $restart = Join-Path $PSScriptRoot "DR-Zone-Restart-$timestamp.ps1"
 @(
@@ -218,4 +235,4 @@ foreach ($vm in $targets) {
 
 Write-Host "`nRestart script saved at:`n  $restart" -ForegroundColor Cyan
 Write-Host "`nLog file saved at:`n  $logFile" -ForegroundColor Cyan
-```
+
