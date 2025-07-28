@@ -20,10 +20,10 @@ A PowerShell script to gracefully shutdown (stop or deallocate) Azure VMs by ava
 
 1. **Clone or download** this repository.
 2. **Open PowerShell** and navigate to the script folder.
-3. **Run** the script:
+3. **Run** the script:   (check for specific version name) 
 
    ```powershell
-   .\DR-Zone-Shutdown.ps1
+   .\DR-Zone-Shutdown.ps1     
    ```
 4. **Simulate** without making changes:
 
