@@ -104,7 +104,7 @@ if (-not $WhatIf) {
 }
 
 # Shutdown logic
-$stoppedVMs = @()
+$ephemeralVMs = @()
 foreach ($vm in $targets) {
     $rg = $vm.ResourceGroup; $nm = $vm.Name
     $opt = az vm show --resource-group $rg --name $nm `
@@ -112,8 +112,8 @@ foreach ($vm in $targets) {
 
     if ($opt -ieq 'Local') {
         $cmd = "az vm stop --resource-group `"$rg`" --name `"$nm`" --no-wait"
-        Write-Host "Stopping (ephemeral OS) $nm" -ForegroundColor Yellow
-        $stoppedVMs += [pscustomobject]@{ ResourceGroup = $rg; Name = $nm }
+        Write-Host "Stopping (ephemeral OS) $nm — no deallocation" -ForegroundColor Yellow
+        $ephemeralVMs += [pscustomobject]@{ ResourceGroup = $rg; Name = $nm }
     } else {
         $cmd = "az vm deallocate --resource-group `"$rg`" --name `"$nm`" --no-wait"
         Write-Host "Deallocating $nm" -ForegroundColor Yellow
@@ -136,10 +136,10 @@ Write-Host "`nShutdown commands submitted." -ForegroundColor Green
 "Completed shutdown at $(Get-Date -Format 'u')" | Out-File -Append $logFile
 
 # Wait for ephemeral-OS VMs to reach 'stopped' state
-if ($stoppedVMs.Count -gt 0) {
+if ($ephemeralVMs.Count -gt 0) {
     Write-Host "`nWaiting for ephemeral-OS VMs to fully stop..." -ForegroundColor Yellow
     $spinner = @('|','/','-','\')
-    foreach ($vm in $stoppedVMs) {
+    foreach ($vm in $ephemeralVMs) {
         $name = $vm.Name; $rg = $vm.ResourceGroup
         Write-Host "Waiting for VM '$name' to reach 'PowerState/stopped'..." -NoNewline
 
@@ -161,40 +161,7 @@ if ($stoppedVMs.Count -gt 0) {
             "Timeout: $name did not reach stopped state in 5 minutes" | Out-File -Append $logFile
         }
     }
-    Write-Host "`nEphemeral-OS VMs check complete." -ForegroundColor Green
-}
-
-# Optional deallocation
-if ($stoppedVMs.Count -gt 0) {
-    Write-Host "`nThe following ephemeral‑OS VMs were stopped (not deallocated):`n" -ForegroundColor Cyan
-    $stoppedVMs | ForEach-Object { Write-Host "  - $($_.Name) (RG: $($_.ResourceGroup))" }
-
-    if (-not $WhatIf) {
-        $ans = Read-Host "`nDeallocate these VMs now? (Y/N)"
-    } else {
-        $ans = 'Y'
-    }
-
-    if ($ans -in 'Y','y') {
-        foreach ($vm in $stoppedVMs) {
-            $dCmd = "az vm deallocate --resource-group `"$($vm.ResourceGroup)`" --name `"$($vm.Name)`" --no-wait"
-            Write-Host "Deallocating $($vm.Name)" -ForegroundColor Yellow
-            if ($WhatIf) {
-                Write-Host "  WhatIf: $dCmd"
-                "Would run: $dCmd" | Out-File -Append $logFile
-            } else {
-                try {
-                    Invoke-Expression $dCmd | Out-Null
-                    "Ran: $dCmd" | Out-File -Append $logFile
-                } catch {
-                    Write-Host "Error running: $dCmd – $_" -ForegroundColor Red
-                    "Error: $_" | Out-File -Append $logFile
-                }
-            }
-        }
-        Write-Host "`nEphemeral‑OS VMs deallocated." -ForegroundColor Green
-        "Ephemeral‑OS VMs deallocated at $(Get-Date -Format 'u')" | Out-File -Append $logFile
-    }
+    Write-Host "`nEphemeral-OS VMs check complete. Deallocation skipped by design." -ForegroundColor Cyan
 }
 
 # Generate restart script
