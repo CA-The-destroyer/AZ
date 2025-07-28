@@ -167,6 +167,10 @@ Write-Host "`nShutdown commands submitted." -ForegroundColor Green
 # 8) Wait for ephemeral‑OS VMs to fully stop before deallocation
 #    Notify user that we are entering the wait loop
 Write-Host "`nStarting wait loop for ephemeral-OS VMs to fully stop. This may take several minutes..." -ForegroundColor Yellow
+
+#———————————————————————————————————————————————
+# 9) Wait until all ephemeral-OS VMs report 'VM stopped'
+#———————————————————————————————————————————————
 ‐OS VMs to fully stop before deallocation
 #———————————————————————————————————————————————
 if ($stoppedVMs.Count -gt 0) {
