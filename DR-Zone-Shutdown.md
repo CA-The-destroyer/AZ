@@ -11,6 +11,10 @@ A PowerShell script to gracefully shutdown (stop or deallocate) Azure VMs by ava
 * **WhatIf Mode**: Simulate all actions without making changes by passing `-WhatIf`.
 * **Azure CLI Login**: Prompts for `az login` if not already authenticated.
 
+
+https://learn.microsoft.com/en-us/azure/virtual-machines/ephemeral-os-disks-faq
+* There's no option of Stop-Deallocate for Ephemeral VMs, rather users need to Delete instead of deallocating them.
+
 ## Prerequisites
 
 * [Azure CLI](https://aka.ms/install-azure-cli) (logged in)
@@ -20,10 +24,10 @@ A PowerShell script to gracefully shutdown (stop or deallocate) Azure VMs by ava
 
 1. **Clone or download** this repository.
 2. **Open PowerShell** and navigate to the script folder.
-3. **Run** the script:   (check for specific version name) 
+3. **Run** the script:
 
    ```powershell
-   .\DR-Zone-Shutdown.ps1     
+   .\DR-Zone-Shutdown.ps1
    ```
 4. **Simulate** without making changes:
 
