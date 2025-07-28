@@ -137,16 +137,31 @@ Write-Host "`nShutdown commands submitted." -ForegroundColor Green
 
 # Wait for ephemeral-OS VMs to reach 'stopped' state
 if ($stoppedVMs.Count -gt 0) {
-    Write-Host "`nStarting wait loop for ephemeral-OS VMs to fully stop. This may take several minutes..." -ForegroundColor Yellow
+    Write-Host "`nWaiting for ephemeral-OS VMs to fully stop..." -ForegroundColor Yellow
+    $spinner = @('|','/','-','\')
     foreach ($vm in $stoppedVMs) {
         $name = $vm.Name; $rg = $vm.ResourceGroup
-        Write-Host "Waiting for VM '$name' to reach 'VM stopped' state..." -ForegroundColor Yellow
+        Write-Host "Waiting for VM '$name' to reach 'PowerState/stopped'..." -NoNewline
+
+        $timeout = [datetime]::Now.AddMinutes(5)
+        $i = 0
         do {
-            $state = az vm show --resource-group $rg --name $name --query "powerState" -o tsv 2>$null
-            Start-Sleep -Seconds 5
-        } while ($state -ne 'VM stopped')
+            $state = az vm get-instance-view --resource-group $rg --name $name `
+                --query "instanceView.statuses[?starts_with(code, 'PowerState/')].code" -o tsv 2>$null
+            $spinnerChar = $spinner[$i % $spinner.Length]
+            Write-Host -NoNewline "`b$spinnerChar"
+            Start-Sleep -Seconds 2
+            $i++
+        } while ($state -ne 'PowerState/stopped' -and [datetime]::Now -lt $timeout)
+
+        if ($state -eq 'PowerState/stopped') {
+            Write-Host "`b✔️" -ForegroundColor Green
+        } else {
+            Write-Host "`b❌ Timed out waiting for VM '$name'" -ForegroundColor Red
+            "Timeout: $name did not reach stopped state in 5 minutes" | Out-File -Append $logFile
+        }
     }
-    Write-Host "All ephemeral-OS VMs are in 'VM stopped' state." -ForegroundColor Green
+    Write-Host "`nEphemeral-OS VMs check complete." -ForegroundColor Green
 }
 
 # Optional deallocation
