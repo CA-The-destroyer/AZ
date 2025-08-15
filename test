@@ -1,0 +1,4 @@
+
+defender_sp_secret: "{{ lookup('env', 'defender_sp_secret') }}"
+
+
